@@ -1,6 +1,11 @@
 package com.example.cryptoapp
 
+import android.graphics.Bitmap
 import android.util.Base64
+import com.google.zxing.BarcodeFormat
+import com.google.zxing.MultiFormatWriter
+import com.google.zxing.WriterException
+import com.journeyapps.barcodescanner.BarcodeEncoder
 import java.security.MessageDigest
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -25,7 +30,7 @@ object CryptoManager {
         val secretKey = deriveKey(passphrase)
         val cipher = Cipher.getInstance(ALGORITHM)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey)
-        
+
         val iv = cipher.iv // IV généré automatiquement par Android
         val encryptedBytes = cipher.doFinal(plainText.toByteArray(Charsets.UTF_8))
 
@@ -35,6 +40,37 @@ object CryptoManager {
         System.arraycopy(encryptedBytes, 0, combined, iv.size, encryptedBytes.size)
 
         return Base64.encodeToString(combined, Base64.DEFAULT)
+    }
+
+    /**
+     * Chiffre le texte et génère directement un QR Code (Bitmap) à partir de la chaîne Base64 résultante.
+     * 
+     * @param plainText Le texte en clair à chiffrer.
+     * @param passphrase La clé/mot de passe.
+     * @param qrSize La dimension en pixels du QR Code (par défaut 500x500px).
+     * @return Le Bitmap du QR Code, ou null en cas d'erreur de génération.
+     */
+    fun encryptToQrCode(plainText: String, passphrase: String, qrSize: Int = 500): Bitmap? {
+        val encryptedBase64 = encrypt(plainText, passphrase)
+        return generateQrCode(encryptedBase64, qrSize)
+    }
+
+    /**
+     * Génère une image Bitmap (QR Code) à partir d'une chaîne de caractères.
+     */
+    fun generateQrCode(content: String, size: Int = 500): Bitmap? {
+        val writer = MultiFormatWriter()
+        return try {
+            val bitMatrix = writer.encode(content, BarcodeFormat.QR_CODE, size, size)
+            val encoder = BarcodeEncoder()
+            encoder.createBitmap(bitMatrix)
+        } catch (e: WriterException) {
+            e.printStackTrace()
+            null
+        } catch (e: IllegalArgumentException) {
+            e.printStackTrace()
+            null
+        }
     }
 
     /**
